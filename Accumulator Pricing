@@ -1,0 +1,95 @@
+
+function acc_mc(S, X, H, r, sigma, settlement, T, M, ngrid)
+    dt = 1 / T
+    npath = 1000
+    nsample = M ÷ npath
+    price = zeros(nsample)
+    strikepath = fill(X, T)
+
+    for i in 1:nsample
+        p = 0
+        for j in 1:npath
+            settle = vcat(0, settlement)
+            accumulation = ones(T)
+            spath, knockout, discount = stockpath(S, H, r, sigma, T, ngrid)
+            if knockout > 0
+                accumulation[knockout:T] .= 0
+                for ix in 1:length(settle)-1
+                    if settle[ix] >= knockout
+                        settle[ix] = knockout
+                        settle = settle[1:ix]
+                        break
+                    end
+                end
+            end
+            accumulation = (1*(spath .> strikepath) + 2*(spath .<= strikepath)) .* accumulation
+            for k in 1:length(settle)-1
+                p += sum(accumulation[settle[k]+1:settle[k+1]]) * (spath[settle[k+1]] - X) * discount[settle[k+1]]
+            end
+        end
+        price[i] = p / npath
+    end
+    value = mean(price)
+    se = sqrt(var(price) / nsample)
+    return value, se
+end
+
+function stockpath(S, q, H, r, sigma, T, ngrid)
+    N = T * ngrid
+    dt = 1 / N
+    s = zeros(N + 1)
+    discount = zeros(N)
+    s[1] = S
+
+    eps = exp.((r - q- 0.5 * sigma^2) * dt .+ sigma * sqrt(dt) .* randn(N))
+
+    knockout = 0
+    stayin = 1
+    for i in 2:(N+1)
+        s[i] = s[i - 1] * eps[i - 1]
+        if ((s[i] > H) && (stayin == 1))
+            knockout = floor(Int, (i - 1) / ngrid)
+            stayin = 0
+        end
+    end
+    path = s[1 + ngrid:ngrid:N + 1]
+    discount = exp.(-r * dt * collect(1:N))
+    return path, knockout, discount
+end
+
+ # Inputs
+S = 46.65349
+X = 42.1746
+H = 48.3963
+r = 0.037
+sigma = 0.169
+settlement = [10,19,29,38,48,58,68,78,88,98,107,117,126,136,146,156,164,173,183,193,201,211,221,228,238,247]
+T = 250
+M = 1000000
+ngrid = 1
+
+
+# Call the function
+path, knockout, discount = stockpath(S, H, r, sigma, T, ngrid)
+
+# Now `path`, `knockout`, and `discount` contain the output of the `stockpath` function
+println("Path: ", path)
+println("Knockout: ", knockout)
+println("Discount: ", discount)
+
+using Statistics
+# Call the acc_mc function
+price, standard_error = acc_mc(S, X, H, r, sigma, settlement, T, M, ngrid)
+
+# Print the output
+println("Price: ", price)
+println("Standard Error: ", standard_error)
+# Open a file
+f = open("output.txt", "w")
+
+# Write to the file
+println(f, "Price: ", price)
+println(f, "Stderr: ", stderr)
+
+# Close the file
+close(f)
