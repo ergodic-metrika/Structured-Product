@@ -1,0 +1,89 @@
+using Distributions
+using Plots
+using ProgressMeter
+
+#Core model is originally contributed by zhangyujing918 on Github. This is the Julia version of Python code contributed by zhangyujing918
+
+
+mutable struct Snowball
+    vol::Float64
+    ki::Float64
+    ko::Float64
+    sd::Float64
+    T::Int
+    coupon::Float64
+    div::Float64
+    IM::Float64
+    q::Float64
+    rf::Float64
+    steps::Int
+end
+
+function stock_mc(sb::Snowball; sim=100000)
+    dt = 1/sb.steps
+    price = zeros(sb.T+1, sim) 
+    price[1,:] .= 1
+    for i in 2:sb.T+1
+        z = randn(sim)
+        price[i,:] .= price[i-1,:] .* exp.((sb.rf - sb.q - 0.5*sb.vol^2) * dt .+ sb.vol * sqrt(dt) * z)
+    end
+    return price
+end
+
+
+function snowball_pricing(sb::Snowball; S0=1.0, sim=10000)
+    
+    prices = stock_mc(sb, sim=sim)
+    
+    values = Vector{Float64}(undef, sim)
+
+    @showprogress for i in 1:size(prices,2)
+        
+        price = prices[:,i]
+        
+        value = NaN
+        
+        days = 0:size(price,1)-1
+
+        up_ko = price .>= S0 * sb.ko      
+        ko_obs = mod.(days, 21) .== 0     
+        ko_days = days[up_ko .& ko_obs]   
+        
+        ki_days = days[price .< S0 * sb.ki]
+
+        if !isempty(ko_days)
+            end_day = ko_days[1]
+            value = sb.coupon * (end_day / sb.steps) * exp(-sb.rf * end_day / sb.steps)
+
+        elseif isempty(ko_days) && !isempty(ki_days)
+            end_day = sb.T
+            value = price[end] < S0 ? price[end] - 1 : 0
+
+        else
+            end_day = sb.T
+            value = sb.div * (end_day / sb.steps) * exp(-sb.rf * end_day / sb.steps)
+        end
+
+        values[i] = value
+    end
+
+    return values
+end
+
+
+function plot_distribution(values)
+    histogram(values, bins=20, xlabel="Value", ylabel="Frequency")
+end
+
+
+# Example Usage
+
+sb = Snowball(0.15, 0.8, 1.03, 0.05, 252, 0.2, 0.2, 0.2, -0.032, 0.02, 252)
+
+values = snowball_pricing(sb, S0=1, sim=100000)
+
+price = mean(values)  
+
+print("Snowball price: $(round(price, digits=4))") 
+
+plot_distribution(values)
