@@ -2,8 +2,8 @@ using Distributions
 using Plots
 using ProgressMeter
 
-#Core model is originally contributed by zhangyujing918 on Github. This is the Julia version of Python code contributed by zhangyujing918
 
+#This core model for Snowball pricing is the Julia version of Python code contributed by zhangyujing918 on Github
 
 mutable struct Snowball
     vol::Float64
