@@ -4,6 +4,7 @@ using ProgressMeter
 
 
 #This core model for Snowball pricing is the Julia version of Python code contributed by zhangyujing918 on Github
+#Referenced source: https://github.com/zhangyujing918/Options/blob/main/Snowball/Monte%20Carlo/snowball_monte_carlo.py
 
 mutable struct Snowball
     vol::Float64
